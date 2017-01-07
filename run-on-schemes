@@ -1,0 +1,49 @@
+#!/bin/bash
+
+# Gets the path to the executable.
+function path-to() {
+  type -a "$1" 2>/dev/null | tail -n 1 | cut -d ' ' -f 3-
+}
+
+# Show the usage message for when the user passes an invalid argument.
+function show-usage() {
+  echo "USAGE:"
+  echo "  $0 script_name"
+}
+
+# Show stderr output as a different color.
+function errecho() {
+  >&2 echo -n $cyan_color
+  >&2 echo $1
+  >&2 echo -n $default_color
+}
+
+# NOTE: Add new entries here.
+schemes[0]='chibi-scheme'
+schemes[1]='csi -s'
+
+# Console colors.
+default_color=$(tput sgr0)
+cyan_color=$(tput setaf 6)
+
+# Get the name of the script to run, and if one is not provided, show a usage
+# message and exit.
+script_name=$1
+[[ "$script_name" == "" ]] && show-usage && exit
+
+# Execute the script once for each of the scheme entries.
+for ((i = 0; i < ${#schemes[@]}; i++)) do
+  scheme=${schemes[$i]}
+
+  # First, let's see if the scheme exists, and if does not, skip.
+  cmd=$(echo $scheme | cut -f 1 -d " ")
+  cmd_path=$(path-to $cmd)
+  if [[ -z "$cmd_path" ]]; then
+    errecho "\`$scheme\` not found. Skipping."
+    continue
+  fi
+  script="$scheme '$script_name'"
+  errecho "Running \`$script\`..."
+  sh -c "$script"
+  echo
+done
