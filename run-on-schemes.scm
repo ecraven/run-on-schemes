@@ -28,46 +28,98 @@
                 (loop (cdr paths))))))))
 (define *schemes* (make-hash-table))
 (define-record-type scheme
-  (make-scheme name executable-names command-line-maker)
+  (make-scheme name executable-names command-line-maker get-version)
   scheme?
   (name scheme-name)
   (executable-names scheme-executable-names)
-  (command-line-maker scheme-command-line-maker))
+  (command-line-maker scheme-command-line-maker)
+  (get-version scheme-get-version))
 
-(define (define-scheme name executable-names command-line-maker)
-  (hash-table-set! *schemes* name (make-scheme name executable-names command-line-maker)))
+(define (define-scheme name executable-names command-line-maker get-version)
+  (hash-table-set! *schemes* name (make-scheme name executable-names command-line-maker get-version)))
+
+(define (make-version-finder param line eol)
+  (lambda (executable scheme)
+    (let* ((lines (process->string-list (string-append executable " " param)))
+           (prefix line)
+           (release (find (lambda (string)
+                            (string-contains string prefix))
+                          lines))
+           (offset (if release (+ (string-cursor->index release (string-contains release prefix)) (string-length prefix)) #f))
+           (version (if release (substring release offset (string-find release eol (string-index->cursor release offset))) "unknown")))
+      version)))
 
 ;;;; Known Scheme implementations
 ;; (define-scheme 'bigloo ...) ;; compiling
-(define-scheme 'biwascheme '("biwas") #f)
+(define-scheme 'biwascheme '("biwas")
+  #f
+  (make-version-finder "--version" " version " #\newline))
 ;; (define-scheme 'bones ...) ;; compiling
-(define-scheme 'chez '("chez-scheme") (lambda (executable input-filename) (string-append executable " -q " input-filename)))
-(define-scheme 'chibi '("chibi-scheme") #f)
+(define-scheme 'chez '("chez-scheme")
+  (lambda (executable input-filename) (string-append executable " -q " input-filename))
+  (lambda (executable scheme)
+    (string-trim (second (process->output+error+status (string-append executable " --version"))) #\newline)))
+(define-scheme 'chibi '("chibi-scheme")
+  #f
+  (make-version-finder "-V" "chibi-scheme " #\space))
 ;; (define-scheme 'chicken '("csc") (lambda (executable input-filename) (string-append executable " -o /tmp/foo " input-filename " ; /tmp/foo"))) ;; compiling
-(define-scheme 'chicken-csi '("csi") (lambda (executable input-filename) (string-append executable " -q " input-filename)))
-(define-scheme 'cyclone '("cyclone") #f)
-(define-scheme 'foment '("foment") #f)
+(define-scheme 'chicken-csi '("csi")
+  (lambda (executable input-filename) (string-append executable " -q " input-filename))
+  (make-version-finder "-version" "Version " #\space))
+(define-scheme 'cyclone '("cyclone")
+  #f
+  (make-version-finder "-v" "Version " #\space))
+(define-scheme 'foment '("foment") #f #f)
 ;; (define-scheme 'gambitc ...) ;; compiling
-(define-scheme 'gauche '("gosh") #f)
-(define-scheme 'guile '("guile") #f)
-(define-scheme 'ironscheme '("ironscheme") #f)
-(define-scheme 'kawa '("kawa") #f)
+(define-scheme 'gauche '("gosh")
+  #f
+  (make-version-finder "-V" ", version " #\space))
+(define-scheme 'guile '("guile")
+  #f
+  (make-version-finder "--version" "guile (GNU Guile) " #\newline)
+  )
+(define-scheme 'ironscheme '("ironscheme")
+  #f
+  (make-version-finder "-V" "" #\newline))
+(define-scheme 'kawa '("kawa") #f
+  (make-version-finder "--version" "Kawa " #\newline))
 ;; (define-scheme 'larceny '("larceny") #f) ;; todo: fix problems with loading script files
-(define-scheme 'mit '("mit-scheme") (lambda (executable input-filename) (string-append executable " --quiet --no-init-file --load " input-filename)))
-(define-scheme 'mosh '("mosh-scheme") #f)
-(define-scheme 'owl-lisp '("ol") #f)
+(define-scheme 'mit '("mit-scheme")
+  (lambda (executable input-filename) (string-append executable " --quiet --no-init-file --load " input-filename))
+  (make-version-finder "--version" "  Release " #\space))
+(define-scheme 'mosh '("mosh-scheme")
+  #f
+  #f) ;; outputs to stderr
+(define-scheme 'owl-lisp '("ol")
+  #f
+  (make-version-finder "--version" "Owl Lisp " #\newline))
 ;; (define-scheme 'petit-larceny '("larceny") #f) ;; todo
-(define-scheme 'petite-chez '("petite") #f)
-(define-scheme 'racket '("racket") #f)
-(define-scheme 'rscheme '("fshell") (lambda (executable input-filename) (string-append executable " -q " input-filename)))
+(define-scheme 'petite-chez '("petite")
+  (lambda (executable input-filename) (string-append executable " -q " input-filename))
+  (lambda (executable scheme)
+    (string-trim (second (process->output+error+status (string-append executable " --version"))) #\newline)))
+(define-scheme 'racket '("racket")
+  #f
+  (lambda x (let ((str (apply (make-version-finder "--version" "Welcome to Racket v" #\newline) x)))
+         ;; strip end-of-sentence #\.
+         (substring str 0 (- (string-length str) 1)))))
+(define-scheme 'rscheme '("fshell")
+  (lambda (executable input-filename) (string-append executable " -q " input-filename))
+  (make-version-finder "--version" "" #\newline))
 ;; (define-scheme 'rscheme-rsc '("rsc") #f) ;; compiling
 ;; (define-scheme 'rhizome '("pisc") #f) ;; needs multiple executables ;-/
-(define-scheme 'sagittarius '("sagittarius") #f)
+(define-scheme 'sagittarius '("sagittarius")
+  #f
+  (make-version-finder "--version" ", version " #\space))
 ;; (define-scheme 'scheme48 '("scheme48") #f) ;; todo: fix problems with loading script files
 ;; (define-scheme 'stalin-chicken '("chicken-stalin") (lambda (executable input-filename) (string-append executable " -On -Ob -Om -Or -Ot -d -d1 -k -copt -O3 " input-filename))) ;; compiling
-(define-scheme 'tinyscheme '("tinyscheme") #f)
-(define-scheme 'vicare '("vicare") #f)
-(define-scheme 'ypsilon '("ypsilon") #f)
+(define-scheme 'tinyscheme '("tinyscheme") #f #f)
+(define-scheme 'vicare '("vicare")
+  #f
+  (make-version-finder "--version" " version " #\,))
+(define-scheme 'ypsilon '("ypsilon")
+  #f
+  (make-version-finder "--version" "Ypsilon " #\space))
 
 (define (find-schemes)
   "Return a list of (<executable-path> . <scheme record>). Path is #f if not found."
@@ -134,11 +186,16 @@
                                                    (after (current-jiffy))
                                                    (output (first result))
                                                    (error (second result))
-                                                   (status (third result)))
+                                                   (status (third result))
+                                                   (get-version (scheme-get-version scheme))
+                                                   (version (if get-version (get-version path scheme) "unknown")))
                                               (if sexp?
                                                   (begin
                                                     (show #t "  (" (yellow "file "))
                                                     (write input-file)
+                                                    (show #t ")" nl)
+                                                    (show #t "  (" (yellow "version "))
+                                                    (write version)
                                                     (show #t ")" nl)
                                                     (show #t "  (" (yellow "stdout "))
                                                     (write output)
