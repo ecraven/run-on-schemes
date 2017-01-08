@@ -4,7 +4,7 @@ Run a file on multiple Scheme implementations.
 
 ## Usage
 
-First, add this directory to your $PATH.
+First, add `$SOME_PATH/run-on-schemes/bin` to your $PATH.
 
 Next, figure out what Scheme standard you wish to target. For example, R7RS.
 
