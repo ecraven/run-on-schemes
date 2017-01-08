@@ -13,8 +13,28 @@ function path-to() {
 
 # Show the usage message for when the user passes an invalid argument.
 function show-usage() {
-  echo "USAGE:"
-  echo "  $0 script_name"
+  echo
+  echo 'USAGE:'
+  echo
+  echo "$0 [-lf] script_name"
+  echo
+  echo '-l - list of arguments'
+  echo '-f - a TSV file containing a list of schemes to use'
+  echo
+  echo 'DEFAULT SCHEMES:'
+  echo
+
+  # List the default schemes that are available.
+  counter=-1
+  while read -r name command_name full_command; do
+    # Skip the header row.
+    let counter++
+    [[ $counter -le 0 ]] && continue
+
+    echo $name
+  done < $schemes_list
+
+  echo
 }
 
 # Console colors.
@@ -28,13 +48,21 @@ function errecho() {
   >&2 echo -n $default_color
 }
 
-# Get the name of the script to run, and if one is not provided, show a usage
-# message and exit.
-script_name=$1
-[[ "$script_name" == "" ]] && show-usage && exit
-
 # Execute the script once for each of the scheme entries.
 schemes_list="$(get-script-dir)/../share/default-schemes"
+schemes_to_use=''
+script_name=''
+
+# Parse the command-line options.
+while getopts 'l::f::i:' flag; do
+  case $flag in
+    l) schemes_to_use=$OPTARG ;;
+    f) schemes_list=$OPTARG ;;
+    i) script_name=$OPTARG ;;
+    \?) show-usage && exit ;;
+  esac
+done
+
 counter=-1
 while read -r name command_name full_command; do
   # Skip the header row.
@@ -46,6 +74,13 @@ while read -r name command_name full_command; do
   if [[ -z "$command_path" ]]; then
     errecho "\`$name\` not found. Skipping."
     continue
+  fi
+
+  # If `-l` argument is passed, only run a scheme if it's in the list.
+  if [[ -n "$schemes_to_use" ]]; then
+    if [[ "$schemes_to_use" != *"$name"* ]]; then
+      continue
+    fi
   fi
 
   # Finally, run the script in a subprocess.
