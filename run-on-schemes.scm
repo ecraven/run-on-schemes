@@ -8,7 +8,7 @@
         (chibi string) ;; string-suffix? string-split
         (srfi 98) ;; get-environment-variable
         (srfi 69) ;; hash tables
-        (srfi 1) ;; filter-map
+        (srfi 1) ;; any
         (chibi show)
         (chibi process)
         (chibi term ansi)
@@ -39,6 +39,7 @@
 
 ;;;; Known Scheme implementations
 ;; (define-scheme 'bigloo ...) ;; compiling
+(define-scheme 'biwascheme '("biwas") #f)
 ;; (define-scheme 'bones ...) ;; compiling
 (define-scheme 'chez '("chez-scheme") (lambda (executable input-filename) (string-append executable " -q " input-filename)))
 (define-scheme 'chibi '("chibi-scheme") #f)
@@ -82,7 +83,7 @@
      (or
       (list "List available Scheme implementations (-v for details)" (@ (verbose boolean (#\v))) (,list-schemes))
       (run "Run an input with multiple Scheme implementations."
-           (@ (scheme string (#\r) "Run only matching Schemes")
+           (@ (scheme string (#\i) "Include only matching Schemes, comma-separated list")
               (sexp boolean (#\s) "Output s-expressions")
               (no-color boolean (#\c) "Disable color output"))
            (,run-schemes))
@@ -101,8 +102,10 @@
               schemes)))
 
 (define (run-schemes config spec . arguments)
-  (let ((sexp? (conf-get config '(command run sexp)))
-        (no-color? (conf-get config '(command run no-color))))
+  (let* ((sexp? (conf-get config '(command run sexp)))
+        (no-color? (conf-get config '(command run no-color)))
+        (matching-schemes-raw (conf-get config '(command run scheme)))
+        (matching-schemes (if matching-schemes-raw (map string-trim (string-split matching-schemes-raw #\,)) #f)))
     (parameterize ((ansi-escapes-enabled? (if no-color? #f (ansi-escapes-enabled?))))
       (if (null? arguments)
           (begin
@@ -115,39 +118,43 @@
                         (let ((schemes (find-schemes)))
                           (for-each (lambda (scheme)
                                       (let* ((path (car scheme))
-                                             (scheme (cdr scheme))
-                                             (command-line-maker (scheme-command-line-maker scheme))
-                                             (command-line (if command-line-maker (command-line-maker path input-file) (show #f path " " input-file))))
-                                        (when path
-                                          (if sexp?
-                                              (show #t "(" (magenta (symbol->string (scheme-name scheme))) nl)
-                                              (show #t (magenta (symbol->string (scheme-name scheme))) nl))
-                                          (let* ((before (current-jiffy))
-                                                 (result (process->output+error+status command-line))
-                                                 (after (current-jiffy))
-                                                 (output (first result))
-                                                 (error (second result))
-                                                 (status (third result)))
+                                             (scheme (cdr scheme)))
+                                        (when (and path
+                                                   (or (not matching-schemes)
+                                                       (any (lambda (s)
+                                                              (string-contains (symbol->string (scheme-name scheme)) s))
+                                                            matching-schemes)))
+                                          (let* ((command-line-maker (scheme-command-line-maker scheme))
+                                                 (command-line (if command-line-maker (command-line-maker path input-file) (show #f path " " input-file))))
                                             (if sexp?
-                                                (begin
-                                                  (show #t "  (" (yellow "file "))
-                                                  (write input-file)
-                                                  (show #t ")" nl)
-                                                  (show #t "  (" (yellow "stdout "))
-                                                  (write output)
-                                                  (show #t ")" nl)
-                                                  (show #t "  (" (yellow "stderr "))
-                                                  (write error)
-                                                  (show #t ")" nl)
-                                                  (show #t "  (" (yellow "time ") (inexact (/ (- after before) (jiffies-per-second))) ")" nl)
-                                                  (show #t "  (" (yellow "status ") (if (zero? status) (green (number->string status)) (red (number->string status))) "))" nl)
+                                                (show #t "(" (magenta (symbol->string (scheme-name scheme))) nl)
+                                                (show #t (magenta (symbol->string (scheme-name scheme))) nl))
+                                            (let* ((before (current-jiffy))
+                                                   (result (process->output+error+status command-line))
+                                                   (after (current-jiffy))
+                                                   (output (first result))
+                                                   (error (second result))
+                                                   (status (third result)))
+                                              (if sexp?
+                                                  (begin
+                                                    (show #t "  (" (yellow "file "))
+                                                    (write input-file)
+                                                    (show #t ")" nl)
+                                                    (show #t "  (" (yellow "stdout "))
+                                                    (write output)
+                                                    (show #t ")" nl)
+                                                    (show #t "  (" (yellow "stderr "))
+                                                    (write error)
+                                                    (show #t ")" nl)
+                                                    (show #t "  (" (yellow "time ") (inexact (/ (- after before) (jiffies-per-second))) ")" nl)
+                                                    (show #t "  (" (yellow "status ") (if (zero? status) (green (number->string status)) (red (number->string status))) "))" nl)
 
-                                                  )
-                                                (if (zero? status)
-                                                    (show #t output nl (green " -> OK") nl)
-                                                    (show #t error nl " " (scheme-name scheme) (red " -> ERROR") nl)))
+                                                    )
+                                                  (if (zero? status)
+                                                      (show #t output nl (green " -> OK") nl)
+                                                      (show #t error nl " " (scheme-name scheme) (red " -> ERROR") nl)))
 
-                                            ))))
+                                              )))))
                                     schemes)))
                       input-files)
             (when sexp?
