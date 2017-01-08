@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# Get the current path relative to the `run-on-schemes` script.
+function get-script-dir() {
+  # May require use of `readname -f` on Linux? http://stackoverflow.com/a/1482133
+  dirname "$(stat -f "$0")"
+}
+
 # Gets the path to the executable.
 function path-to() {
   type -a "$1" 2>/dev/null | tail -n 1 | cut -d ' ' -f 3-
@@ -11,6 +17,10 @@ function show-usage() {
   echo "  $0 script_name"
 }
 
+# Console colors.
+default_color=$(tput sgr0)
+cyan_color=$(tput setaf 6)
+
 # Show stderr output as a different color.
 function errecho() {
   >&2 echo -n $cyan_color
@@ -18,32 +28,29 @@ function errecho() {
   >&2 echo -n $default_color
 }
 
-# NOTE: Add new entries here.
-schemes[0]='chibi-scheme'
-schemes[1]='csi -s'
-
-# Console colors.
-default_color=$(tput sgr0)
-cyan_color=$(tput setaf 6)
-
 # Get the name of the script to run, and if one is not provided, show a usage
 # message and exit.
 script_name=$1
 [[ "$script_name" == "" ]] && show-usage && exit
 
 # Execute the script once for each of the scheme entries.
-for ((i = 0; i < ${#schemes[@]}; i++)) do
-  scheme=${schemes[$i]}
+schemes_list="$(get-script-dir)/../share/default-schemes"
+counter=-1
+while read -r name command_name full_command; do
+  # Skip the header row.
+  let counter++
+  [[ $counter -le 0 ]] && continue
 
   # First, let's see if the scheme exists, and if does not, skip.
-  cmd=$(echo $scheme | cut -f 1 -d " ")
-  cmd_path=$(path-to $cmd)
-  if [[ -z "$cmd_path" ]]; then
-    errecho "\`$scheme\` not found. Skipping."
+  command_path=$(path-to $command_name)
+  if [[ -z "$command_path" ]]; then
+    errecho "\`$name\` not found. Skipping."
     continue
   fi
-  script="$scheme '$script_name'"
+
+  # Finally, run the script in a subprocess.
+  script="$full_command '$script_name'"
   errecho "Running \`$script\`..."
   sh -c "$script"
   echo
-done
+done < $schemes_list
