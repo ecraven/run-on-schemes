@@ -51,8 +51,8 @@ for running.
 
 For example, suppose you want to add a hypothetical Scheme called `super-scheme`
 with a command called `supers` and in order to run a script with it, you would
-need to call it with an argument, `-i`. Then the entry would look like:
+need to call it with an argument, `-s`. Then the entry would look like:
 
 ```
-super-scheme	supers	supers -i
+super-scheme	supers	supers -s
 ```
