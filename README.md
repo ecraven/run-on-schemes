@@ -31,7 +31,7 @@ If you would like to pass your own TSV file containing a list of schemes, use
 the `-f` argument.
 
 ```
-run-on-schemes run -f list-of-schemes.tsv name-of-script.scm
+run-on-schemes run -f list-of-schemes.scm name-of-script.scm
 ```
 
 If you would like to choose only certain schemes to run, use the `-i` argument.
