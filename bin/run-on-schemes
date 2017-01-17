@@ -1,91 +1,14 @@
-#!/bin/bash
+#!/bin/sh
+
+# Get the path to chibi-scheme on this machine.
+function path_to_chibi() {
+  which chibi-scheme | head -n 1
+}
 
 # Get the current path relative to the `run-on-schemes` script.
-function get-script-dir() {
+function get_script_dir() {
   # May require use of `readname -f` on Linux? http://stackoverflow.com/a/1482133
   dirname "$(stat -f "$0")"
 }
 
-# Gets the path to the executable.
-function path-to() {
-  type -a "$1" 2>/dev/null | tail -n 1 | cut -d ' ' -f 3-
-}
-
-# Show the usage message for when the user passes an invalid argument.
-function show-usage() {
-  echo
-  echo 'USAGE:'
-  echo
-  echo "$0 [-lf] script_name"
-  echo
-  echo '-l - list of arguments'
-  echo '-f - a TSV file containing a list of schemes to use'
-  echo
-  echo 'DEFAULT SCHEMES:'
-  echo
-
-  # List the default schemes that are available.
-  counter=-1
-  while read -r name command_name full_command; do
-    # Skip the header row.
-    let counter++
-    [[ $counter -le 0 ]] && continue
-
-    echo $name
-  done < $schemes_list
-
-  echo
-}
-
-# Console colors.
-default_color=$(tput sgr0)
-cyan_color=$(tput setaf 6)
-
-# Show stderr output as a different color.
-function errecho() {
-  >&2 echo -n $cyan_color
-  >&2 echo $1
-  >&2 echo -n $default_color
-}
-
-# Execute the script once for each of the scheme entries.
-schemes_list="$(get-script-dir)/../share/default-schemes"
-schemes_to_use=''
-script_name=''
-
-# Parse the command-line options.
-while getopts 'l::f::i:' flag; do
-  case $flag in
-    l) schemes_to_use=$OPTARG ;;
-    f) schemes_list=$OPTARG ;;
-    i) script_name=$OPTARG ;;
-    \?) show-usage && exit ;;
-  esac
-done
-
-counter=-1
-while read -r name command_name full_command; do
-  # Skip the header row.
-  let counter++
-  [[ $counter -le 0 ]] && continue
-
-  # First, let's see if the scheme exists, and if does not, skip.
-  command_path=$(path-to $command_name)
-  if [[ -z "$command_path" ]]; then
-    errecho "\`$name\` not found. Skipping."
-    continue
-  fi
-
-  # If `-l` argument is passed, only run a scheme if it's in the list.
-  if [[ -n "$schemes_to_use" ]]; then
-    if [[ "$schemes_to_use" != *"$name"* ]]; then
-      continue
-    fi
-  fi
-
-  # Finally, run the script in a subprocess.
-  script="$full_command '$script_name'"
-  errecho "Running \`$script\`..."
-  sh -c "$script"
-  echo
-done < $schemes_list
+eval "$(path_to_chibi) $(get_script_dir)/../share/run-on-schemes.scm $@"
