@@ -22,7 +22,7 @@ Write a Scheme script intended to target multiple Schemes. For example:
 (newline)
 ```
 
-Run `run-on-schemes -i name-of-script.scm`. The script will attempt to find all
+Run `run-on-schemes run name-of-script.scm`. The script will attempt to find all
 schemes on your system that it knows about, and run the script on each.
 
 ## Advanced Usage
@@ -31,14 +31,14 @@ If you would like to pass your own TSV file containing a list of schemes, use
 the `-f` argument.
 
 ```
-run-on-schemes -f list-of-schemes.tsv
+run-on-schemes run -f list-of-schemes.tsv name-of-script.scm
 ```
 
-If you would like to choose only certain schemes to run, use the `-l` argument.
+If you would like to choose only certain schemes to run, use the `-i` argument.
 
 ```
-run-on-schemes -l chicken
-run-on-schemes -l 'chibi chicken'
+run-on-schemes run -i chicken name-of-script.scm
+run-on-schemes run -i 'chibi,chicken' name-of-script.scm
 ```
 
 ## Customizing
@@ -46,13 +46,4 @@ run-on-schemes -l 'chibi chicken'
 ### Adding a new Scheme to the list
 
 Open up `$SOME_PATH/run-on-schemes/share/default-schemes` and add a new line
-containing a tab-separated list of a name, a command name, and a full command
-for running.
-
-For example, suppose you want to add a hypothetical Scheme called `super-scheme`
-with a command called `supers` and in order to run a script with it, you would
-need to call it with an argument, `-s`. Then the entry would look like:
-
-```
-super-scheme	supers	supers -s
-```
+containing a definition for the scheme.
