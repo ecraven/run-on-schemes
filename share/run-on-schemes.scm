@@ -3,7 +3,7 @@
         (scheme time)
         (chibi)
         (chibi io)
-        (chibi pathname)
+        (chibi pathname) ;; path-directory
         (chibi filesystem) ;; file-exists? file-is-executable?
         (srfi 9) ;; define-record-type
         (chibi string) ;; string-suffix? string-split
@@ -16,48 +16,18 @@
         (chibi app)
         (chibi config))
 
-;; ----------------------------------------------------------------------------
-;; These functions are for determining the path to the scheme definitions file.
-;; ----------------------------------------------------------------------------
+;; Path to this script file.
+(define (script-path)
+  (let* ((pid (number->string (current-process-id)))
+         (command (string-append "ps -eo command " pid))
+         (standard-output (car (process->output+error+status command)))
+         (lines (string-split standard-output #\newline))
+         (second-line (cadr lines)))
+    (cadr (string-split second-line))))
 
-(define (ps)
-  (string-split (first (process->output+error+status (string-append "ps -ef"))) #\newline))
-
-(define pid
-  (number->string (current-process-id)))
-
-(define (process-ps-line line done)
-  (let ((pieces (string-split (string-trim line))))
-    (if (> (length pieces) 0)
-      (let ((current-pid (second pieces)))
-        (if (and (> (string-length current-pid) 0) (equal? pid current-pid))
-          (done line))))))
-
-(define (current-process-line)
-  (call/cc
-    (lambda (return)
-      (for-each
-        (lambda (line)
-          (process-ps-line line return))
-        (ps)))))
-
-(define (script-path script-name)
-  (call/cc
-    (lambda (return)
-      (for-each
-        (lambda (n)
-          (define pieces (string-split n #\/))
-          (if (and (> (length pieces) 0) (equal? (last pieces) script-name))
-            (return n)))
-        (string-split (current-process-line))))))
-
-(define (script-directory script-name)
-  (path-directory (script-path script-name)))
-
+;; Relative to this script, the path to the default schemes definition file.
 (define (default-schemes-path)
-  (string-append (script-directory "run-on-schemes.scm") "/" "default-schemes.scm"))
-
-;; ----------------------------------------------------------------------------
+  (string-append (path-directory (script-path)) "/default-schemes.scm"))
 
 (define (find-executable name)
   (let ((paths (string-split (get-environment-variable "PATH") #\:)))
