@@ -67,7 +67,7 @@
 ;;;; Known Scheme implementations
 
 (define-scheme 'bigloo '("bigloo")
-(lambda (bigloo input-filename)
+  (lambda (bigloo input-filename)
     (let-values (((output error status time) (execute-runner (string-append bigloo " " input-filename " -O6 -call/cc -copt -O3 -o /tmp/bigloo"))))
       (values output error status time "/tmp/bigloo")))
   (lambda (bigloo input-file executable)
